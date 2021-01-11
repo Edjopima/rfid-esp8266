@@ -2,8 +2,12 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+// define MFRC522 pins
 #define RST_PIN 5
 #define SS_PIN 4
+// define led and button pin
+#define green_led 16
+#define button 15
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 
@@ -13,21 +17,47 @@ void setup() {
 	SPI.begin();			// Init SPI bus
 	mfrc522.PCD_Init();		// Init MFRC522
 	delay(4);				// Optional delay. Some board do need more time after init to be ready, see Readme
-	mfrc522.PCD_DumpVersionToSerial();	// Show details of PCD - MFRC522 Card Reader details
-	Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
+	pinMode(button,INPUT);
+	pinMode(green_led, OUTPUT);
 }
 
 void loop() {
-	// Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
-	if ( ! mfrc522.PICC_IsNewCardPresent()) {
-		return;
-	}
+	digitalWrite(green_led, LOW);
+// Revisamos si hay nuevas tarjetas  presentes
+	if ( mfrc522.PICC_IsNewCardPresent()){
+  		//Seleccionamos una tarjeta
+            if ( mfrc522.PICC_ReadCardSerial()){
+                  // Enviamos serialemente su UID
+                	for (byte i = 0; i < mfrc522.uid.size; i++) {
+                    	Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+                        Serial.print(mfrc522.uid.uidByte[i], HEX);
+                }
+                Serial.print('\n');
+                mfrc522.PICC_HaltA();
 
-	// Select one of the cards
-	if ( ! mfrc522.PICC_ReadCardSerial()) {
-		return;
+            }
 	}
-
-	// Dump debug info about the card; PICC_HaltA() is automatically called
-	mfrc522.PICC_DumpToSerial(&(mfrc522.uid));
+	while (digitalRead(button) == HIGH){
+    	if (mfrc522.PICC_IsNewCardPresent()){
+    		//Seleccionamos una tarjeta
+            if ( mfrc522.PICC_ReadCardSerial()){
+                  // Enviamos serialemente su UID
+                Serial.print('r');
+                for (byte i = 0; i < mfrc522.uid.size; i++) {
+                    Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+                    Serial.print(mfrc522.uid.uidByte[i], HEX);
+                }
+                Serial.print('\n');
+            	mfrc522.PICC_HaltA();
+                break;
+            }
+    	}
+	}
+	if (Serial.available() > 0){
+    char comando = Serial.read();
+    if (comando == 'o'){
+    	digitalWrite(green_led, HIGH);
+    	delay(2000);
+	}
+	}
 }
