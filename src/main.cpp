@@ -19,52 +19,54 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 WiFiClient client;
 HTTPClient http;
 
-void handle_access(String uid){
-		String json_data = "{\"action\":\"open\",\"uid\":\"" + uid +"\"}";
-                mfrc522.PICC_HaltA();
+void handle_actions(String uid, String send_action){
+				String json_data = "{\"action\":\""+ send_action + "\",\"uid\":\"" + uid +"\"}";
+				Serial.print(json_data);
+				Serial.print("\n");
     			http.begin(client,"http://192.168.31.204:3000/action");
 				http.addHeader("Content-Type", "application/json");
 				delay(1000);
 				if (http.POST(json_data) == 200){
 					String response = http.getString();
-					StaticJsonDocument<192> doc;
+					StaticJsonDocument<210> doc;
 					deserializeJson(doc, response);
-					const char* action = doc["action"]; // "open"
-					const char* uid = doc["uid"]; // "  12 34 23 34"
-					const char* name = doc["name"]; // " Eduardo Piña"
-					int result = doc["result"]; // 1
-					if (result == 1){
-						Serial.print("\nAcceso Autorizado: ");
-						Serial.print(name);
-						digitalWrite(green_led,HIGH);
-						Serial.print("\nOpen");
-						delay(2000);
-						Serial.print("\nClose");
-						digitalWrite(green_led,LOW);
-						Serial.print("\n");
-					}else{
-						Serial.print("\nAcceso no autorizado: ");
-						Serial.print(name);
-						Serial.print("\n");
+					const char* action = doc["action"];
+					const char* uid = doc["uid"];
+					const char* name = doc["name"];
+					int result = doc["result"];
+					int open = doc["open"];
+
+					if (open == 1){
+						if (result == 1){
+							Serial.print("\nAcceso Autorizado: ");
+							Serial.print(name);
+							digitalWrite(green_led,HIGH);
+							Serial.print("\nOpen");
+							delay(2000);
+							Serial.print("\nClose");
+							digitalWrite(green_led,LOW);
+							Serial.print("\n");
+						}else{
+							Serial.print("\nAcceso no autorizado: ");
+							Serial.print(name);
+							Serial.print("\n");
+						}
+					}else if (open == 0){
+						if (result == 1){
+							Serial.print("\nRegistro Completo: ");
+							Serial.print(name);
+							digitalWrite(green_led,HIGH);
+							Serial.print("\n");
+						}else{
+							Serial.print("\nError en registro");
+							Serial.print("\n");
+						}
 					}
 				}else{
 					Serial.print("error");
 				}
     			http.end();
     			delay(1000);
-}
-
-void handle_register(String uid){
-				String json_data = "{\"action\":\"register\",\"uid\":\"" + uid +"\"}";
-				Serial.print(json_data);
-                Serial.print('\n');
-            	mfrc522.PICC_HaltA();
-				http.begin(client,"http://192.168.31.204:3000/action");
-				http.addHeader("Content-Type", "application/json");
-				int httpCode = http.POST(json_data);
-    			String respuesta = http.getString();
-				Serial.print(httpCode);
-    			Serial.print(respuesta);
 }
 
 void setup() {
@@ -97,7 +99,8 @@ void loop() {
 					str.toUpperCase();
 					uid = uid + str;
                 }
-			handle_access(uid);
+			mfrc522.PICC_HaltA();
+			handle_actions(uid, "open");
             }
 	}
 		while (digitalRead(button) == HIGH){
@@ -115,7 +118,8 @@ void loop() {
 					str.toUpperCase();
 					uid = uid + str;
                 }
-				handle_register(uid);
+				mfrc522.PICC_HaltA();
+				handle_actions(uid,"register");
                 break;
             }
     	}
